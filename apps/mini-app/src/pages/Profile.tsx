@@ -9,19 +9,7 @@ import {
   Card, LogoHeader, StatusBadge, Button,
   Field, Divider, Spinner, SectionTitle, ProgressBar,
 } from '../components/ui';
-
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp: {
-        openInvoice: (url: string, cb: (status: string) => void) => void;
-        initDataUnsafe: { user?: { photo_url?: string } };
-        openTelegramLink: (url: string) => void;
-        close: () => void;
-      };
-    };
-  }
-}
+// Window.Telegram types are declared in src/telegram.d.ts
 
 const statusLabel: Record<string, string> = {
   ACTIVE: 'АКТИВНА', EXPIRED: 'ИСТЕКЛА', DISABLED: 'НЕАКТИВНА',

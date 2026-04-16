@@ -40,6 +40,6 @@ COPY apps/api/prisma ./apps/api/prisma
 
 WORKDIR /app/apps/api
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node dist/index.js"]
 
 EXPOSE 3000

@@ -11,21 +11,6 @@ import { Spinner } from './components/ui';
 
 type Tab = 'profile' | 'referral' | 'devices' | 'traffic';
 
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp: {
-        ready: () => void;
-        expand: () => void;
-        initData: string;
-        themeParams: Record<string, string>;
-        setHeaderColor: (color: string) => void;
-        setBackgroundColor: (color: string) => void;
-      };
-    };
-  }
-}
-
 export const App: FC = () => {
   const [tab, setTab] = useState<Tab>('profile');
   const [authLoading, setAuthLoading] = useState(true);
