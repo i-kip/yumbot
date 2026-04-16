@@ -5,12 +5,11 @@ import { remnawave } from '../lib/remnawave.js';
 import { syncSubscriptionFromRemna } from '../services/user.js';
 import { purchaseSubscriptionFromBalance, purchaseExtraDevice } from '../services/payment.js';
 import { getConnectionUrl } from '../services/subscription.js';
-import { config } from '../config.js';
 
 const DEVICE_SLOT_PRICE_KOPEKS = 10_000; // 100 rub
 
 export async function subscriptionRoutes(app: FastifyInstance) {
-  // GET /subscription - current subscription
+  // GET /subscription
   app.get('/subscription', { preHandler: [app.authenticate] }, async (req) => {
     await syncSubscriptionFromRemna(req.userId).catch(() => {});
 
@@ -23,10 +22,8 @@ export async function subscriptionRoutes(app: FastifyInstance) {
     if (!sub) return { subscription: null };
 
     const trafficLimitGb = Number(sub.trafficLimitBytes) / 1024 ** 3;
-    const trafficUsedGb = Number(sub.trafficUsedBytes) / 1024 ** 3;
-    const trafficUsedPercent =
-      trafficLimitGb > 0 ? (trafficUsedGb / trafficLimitGb) * 100 : 0;
-
+    const trafficUsedGb  = Number(sub.trafficUsedBytes)  / 1024 ** 3;
+    const trafficUsedPercent = trafficLimitGb > 0 ? (trafficUsedGb / trafficLimitGb) * 100 : 0;
     const daysLeft = sub.endDate
       ? Math.max(0, Math.ceil((sub.endDate.getTime() - Date.now()) / 86400000))
       : 0;
@@ -37,12 +34,12 @@ export async function subscriptionRoutes(app: FastifyInstance) {
         status: sub.status,
         isTrial: sub.isTrial,
         planName: sub.plan?.name ?? null,
-        trafficLimitGb: Math.round(trafficLimitGb * 100) / 100,
-        trafficUsedGb: Math.round(trafficUsedGb * 100) / 100,
+        trafficLimitGb:     Math.round(trafficLimitGb * 100) / 100,
+        trafficUsedGb:      Math.round(trafficUsedGb  * 100) / 100,
         trafficUsedPercent: Math.round(trafficUsedPercent * 10) / 10,
         deviceLimit: sub.deviceLimit,
         startDate: sub.startDate,
-        endDate: sub.endDate,
+        endDate:   sub.endDate,
         daysLeft,
       },
     };
@@ -69,9 +66,8 @@ export async function subscriptionRoutes(app: FastifyInstance) {
 
     if (!user) return reply.status(404).send({ error: 'User not found' });
     if (!plan) return reply.status(404).send({ error: 'Plan not found' });
-    if (user.balanceKopeks < plan.priceKopeks) {
+    if (user.balanceKopeks < plan.priceKopeks)
       return reply.status(402).send({ error: 'Insufficient balance' });
-    }
 
     await purchaseSubscriptionFromBalance(user, plan);
     return { ok: true };
@@ -79,10 +75,7 @@ export async function subscriptionRoutes(app: FastifyInstance) {
 
   // GET /subscription/connection-link
   app.get('/subscription/connection-link', { preHandler: [app.authenticate] }, async (req) => {
-    const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    if (!user) return { url: null };
-
-    const url = await getConnectionUrl(user);
+    const url = await getConnectionUrl(req.userId);
     return { url };
   });
 
@@ -90,52 +83,34 @@ export async function subscriptionRoutes(app: FastifyInstance) {
   app.get('/subscription/devices', { preHandler: [app.authenticate] }, async (req) => {
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
     if (!user?.remnaUuid) return { devices: [] };
-
     const devices = await remnawave.getUserDevices(user.remnaUuid);
     return { devices };
   });
 
   // DELETE /subscription/devices/:hwid
-  app.delete(
-    '/subscription/devices/:hwid',
-    { preHandler: [app.authenticate] },
-    async (req, reply) => {
-      const { hwid } = req.params as { hwid: string };
-      const user = await prisma.user.findUnique({ where: { id: req.userId } });
-      if (!user?.remnaUuid) return reply.status(404).send({ error: 'No VPN account' });
+  app.delete('/subscription/devices/:hwid', { preHandler: [app.authenticate] }, async (req, reply) => {
+    const { hwid } = req.params as { hwid: string };
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user?.remnaUuid) return reply.status(404).send({ error: 'No VPN account' });
+    await remnawave.removeUserDevice(user.remnaUuid, hwid);
+    return { ok: true };
+  });
 
-      await remnawave.removeUserDevice(user.remnaUuid, hwid);
+  // POST /subscription/devices/purchase
+  app.post('/subscription/devices/purchase', { preHandler: [app.authenticate] }, async (req, reply) => {
+    try {
+      await purchaseExtraDevice(req.userId, DEVICE_SLOT_PRICE_KOPEKS);
       return { ok: true };
+    } catch (e) {
+      if (e instanceof Error && e.message === 'Insufficient balance')
+        return reply.status(402).send({ error: 'Insufficient balance' });
+      throw e;
     }
-  );
-
-  // POST /subscription/devices/purchase - buy extra device slot
-  app.post(
-    '/subscription/devices/purchase',
-    { preHandler: [app.authenticate] },
-    async (req, reply) => {
-      const user = await prisma.user.findUnique({ where: { id: req.userId } });
-      if (!user) return reply.status(404).send({ error: 'User not found' });
-
-      try {
-        await purchaseExtraDevice(user, DEVICE_SLOT_PRICE_KOPEKS);
-        return { ok: true };
-      } catch (e) {
-        if (e instanceof Error && e.message === 'Insufficient balance') {
-          return reply.status(402).send({ error: 'Insufficient balance' });
-        }
-        throw e;
-      }
-    }
-  );
+  });
 
   // POST /subscription/refresh-traffic
-  app.post(
-    '/subscription/refresh-traffic',
-    { preHandler: [app.authenticate] },
-    async (req) => {
-      await syncSubscriptionFromRemna(req.userId);
-      return { ok: true };
-    }
-  );
+  app.post('/subscription/refresh-traffic', { preHandler: [app.authenticate] }, async (req) => {
+    await syncSubscriptionFromRemna(req.userId);
+    return { ok: true };
+  });
 }

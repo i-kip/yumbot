@@ -19,6 +19,8 @@ RUN pnpm --filter @yumbot/remnawave build
 # Build API
 FROM build-pkg AS build-api
 COPY apps/api/ ./apps/api/
+# Generate Prisma client before tsc
+RUN cd apps/api && npx prisma generate
 RUN pnpm --filter api build
 
 # Production image — only runtime deps

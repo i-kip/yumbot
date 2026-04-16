@@ -1,11 +1,8 @@
 import { prisma } from '../lib/prisma.js';
 import { remnawave } from '../lib/remnawave.js';
 import { config } from '../config.js';
-import type { User } from '@prisma/client';
 
-function remnaUsername(telegramId: number | bigint): string {
-  return `yumoff_${telegramId}`;
-}
+type UserRow = { id: number; telegramId: bigint | null; remnaUuid: string | null };
 
 async function getDefaultInbounds(): Promise<{ uuid: string }[]> {
   try {
@@ -16,12 +13,12 @@ async function getDefaultInbounds(): Promise<{ uuid: string }[]> {
   }
 }
 
-export async function ensureRemnaUser(user: User): Promise<void> {
+export async function ensureRemnaUser(user: UserRow): Promise<void> {
   if (user.remnaUuid) return;
 
   const tgId = user.telegramId ? Number(user.telegramId) : undefined;
 
-  // Check if user already exists in Remnawave (e.g. previous account)
+  // Check if user already exists in Remnawave panel
   if (tgId) {
     const existing = await remnawave.getUserByTelegramId(tgId);
     if (existing) {
@@ -40,7 +37,7 @@ export async function ensureRemnaUser(user: User): Promise<void> {
   const inbounds = await getDefaultInbounds();
 
   const remnaUser = await remnawave.createUser({
-    username: tgId ? remnaUsername(tgId) : `yumoff_email_${user.id}`,
+    username: tgId ? `yumoff_${tgId}` : `yumoff_email_${user.id}`,
     trafficLimitBytes: config.REMNAWAVE_DEFAULT_TRAFFIC_GB * 1024 ** 3,
     trafficLimitStrategy: 'MONTH',
     activeUserInbounds: inbounds,
@@ -64,10 +61,6 @@ export async function syncSubscriptionFromRemna(userId: number): Promise<void> {
   const remnaUser = await remnawave.getUserByUuid(user.remnaUuid);
   if (!remnaUser) return;
 
-  const sub = await prisma.subscription.findFirst({
-    where: { userId, remnaUuid: remnaUser.uuid },
-  });
-
   const statusMap: Record<string, 'ACTIVE' | 'DISABLED' | 'LIMITED' | 'EXPIRED'> = {
     ACTIVE: 'ACTIVE',
     DISABLED: 'DISABLED',
@@ -75,18 +68,20 @@ export async function syncSubscriptionFromRemna(userId: number): Promise<void> {
     EXPIRED: 'EXPIRED',
   };
 
+  const subStatus = statusMap[remnaUser.status] ?? 'DISABLED';
+
   const data = {
     trafficLimitBytes: BigInt(remnaUser.trafficLimitBytes),
-    trafficUsedBytes: BigInt(remnaUser.usedTrafficBytes),
-    deviceLimit: remnaUser.deviceLimit,
-    endDate: remnaUser.expireAt ? new Date(remnaUser.expireAt) : undefined,
-    shortUuid: remnaUser.shortUuid,
-    status: (statusMap[remnaUser.status] ?? 'DISABLED') as
-      | 'ACTIVE'
-      | 'DISABLED'
-      | 'LIMITED'
-      | 'EXPIRED',
+    trafficUsedBytes:  BigInt(remnaUser.usedTrafficBytes),
+    deviceLimit:       remnaUser.deviceLimit,
+    endDate:           remnaUser.expireAt ? new Date(remnaUser.expireAt) : undefined,
+    shortUuid:         remnaUser.shortUuid,
+    status:            subStatus as 'ACTIVE' | 'DISABLED' | 'LIMITED' | 'EXPIRED',
   };
+
+  const sub = await prisma.subscription.findFirst({
+    where: { userId, remnaUuid: remnaUser.uuid },
+  });
 
   if (sub) {
     await prisma.subscription.update({ where: { id: sub.id }, data });

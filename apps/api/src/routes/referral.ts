@@ -3,7 +3,6 @@ import { prisma } from '../lib/prisma.js';
 import { config } from '../config.js';
 
 export async function referralRoutes(app: FastifyInstance) {
-  // GET /referral
   app.get('/referral', { preHandler: [app.authenticate] }, async (req) => {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
@@ -12,17 +11,21 @@ export async function referralRoutes(app: FastifyInstance) {
         telegramId: true,
         referralCode: true,
         balanceKopeks: true,
-        referrals: { select: { id: true, createdAt: true, firstName: true, username: true } },
+        referrals: {
+          select: { id: true, createdAt: true, firstName: true, username: true },
+        },
       },
     });
-
     if (!user) return null;
 
     const rewards = await prisma.referralReward.findMany({
       where: { referrerId: user.id },
     });
 
-    const totalRewardKopeks = rewards.reduce((sum, r) => sum + r.rewardKopeks, 0);
+    const totalRewardKopeks = rewards.reduce(
+      (sum: number, r: { rewardKopeks: number }) => sum + r.rewardKopeks,
+      0
+    );
 
     const referralLink = user.telegramId
       ? `https://t.me/yumoff_bot?start=${user.referralCode}`
@@ -36,7 +39,7 @@ export async function referralRoutes(app: FastifyInstance) {
       rewardPercent: config.REFERRAL_PERCENT,
       balanceKopeks: user.balanceKopeks,
       telegramId: user.telegramId?.toString() ?? null,
-      referrals: user.referrals.map((r) => ({
+      referrals: user.referrals.map((r: { id: number; firstName: string | null; username: string | null; createdAt: Date }) => ({
         id: r.id,
         name: r.firstName ?? r.username ?? `User #${r.id}`,
         joinedAt: r.createdAt,
