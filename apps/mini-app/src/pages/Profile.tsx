@@ -3,7 +3,7 @@ import type { FC } from 'react';
 import type { User, Subscription, Transaction, Plan } from '../types';
 import {
   getMe, getSubscription, getTransactions,
-  getPlans, getBalance, createStarsTopup, purchaseSubscription,
+  getPlans, getBalance, createStarsTopup, purchaseSubscription, activateTrial,
 } from '../api/endpoints';
 import {
   Card, LogoHeader, StatusBadge, Button,
@@ -40,6 +40,7 @@ export const Profile: FC = () => {
   const [topupAmount, setTopupAmount] = useState(299);
   const [buyingPlan, setBuyingPlan] = useState<number | null>(null);
   const [topupLoading, setTopupLoading] = useState(false);
+  const [trialLoading, setTrialLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   useEffect(() => {
@@ -69,6 +70,21 @@ export const Profile: FC = () => {
       setMsg({ type: 'err', text: 'Ошибка при создании платежа' });
     } finally {
       setTopupLoading(false);
+    }
+  };
+
+  const handleTrial = async () => {
+    setTrialLoading(true);
+    try {
+      await activateTrial();
+      const [sRes] = await Promise.all([getSubscription()]);
+      setSub(sRes.data.subscription);
+      setMsg({ type: 'ok', text: '🎉 Пробная подписка на 3 дня активирована!' });
+    } catch (e: any) {
+      const code = e?.response?.status;
+      setMsg({ type: 'err', text: code === 409 ? 'Пробный период уже использован' : 'Ошибка активации' });
+    } finally {
+      setTrialLoading(false);
     }
   };
 
@@ -123,31 +139,6 @@ export const Profile: FC = () => {
         </div>
       </Card>
 
-      {/* Referral Race banner */}
-      <Card className="bg-gradient-to-br from-[#0f1e3d] to-[#0f1825] border border-accent-blue/20">
-        <p className="text-text-primary font-extrabold text-xl uppercase tracking-tight mb-2">
-          🏆 Гонка рефералов
-        </p>
-        <p className="text-text-secondary text-sm leading-relaxed mb-3">
-          Приглашай друзей в YumOff по своей реферальной ссылке и участвуй в гонке.
-          Главный приз — Apple AirPods Pro.
-        </p>
-        <button className="text-accent-blue-light text-sm font-semibold flex items-center gap-1">
-          Подробнее →
-        </button>
-      </Card>
-
-      {/* Notification banner */}
-      <Card className="bg-gradient-to-r from-[#0f1825] to-[#162033] border border-bg-border">
-        <span className="inline-block bg-accent-blue text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded mb-2">
-          НОВИНКА
-        </span>
-        <p className="text-text-primary font-bold text-base mb-1">Расширение для браузера</p>
-        <p className="text-text-secondary text-sm">
-          Представляем расширение для всех браузеров: Chrome, Firefox, Safari.
-        </p>
-      </Card>
-
       {/* Balance + topup */}
       <Card>
         <SectionTitle>Баланс</SectionTitle>
@@ -160,7 +151,7 @@ export const Profile: FC = () => {
       </Card>
 
       {/* Subscription status */}
-      <Card className={`${!sub || sub.status !== 'ACTIVE' ? 'border border-status-inactive/20' : 'border border-status-active/20'}`}>
+      <Card className={`${!sub || (sub.status !== 'ACTIVE' && sub.status !== 'TRIAL') ? 'border border-status-inactive/20' : 'border border-status-active/20'}`}>
         <div className="flex items-center justify-between mb-3">
           <SectionTitle>Статус подписки</SectionTitle>
           <StatusBadge
@@ -169,9 +160,14 @@ export const Profile: FC = () => {
           />
         </div>
 
-        {sub?.status === 'ACTIVE' && (
+        {(sub?.status === 'ACTIVE' || sub?.status === 'TRIAL') && (
           <div className="space-y-2 mb-3">
-            {sub.planName && (
+            {sub.isTrial && (
+              <div className="bg-accent-blue/10 border border-accent-blue/20 rounded-btn px-3 py-2 text-xs text-accent-blue-light font-medium">
+                🎁 Пробный период — после окончания выберите тариф
+              </div>
+            )}
+            {sub.planName && !sub.isTrial && (
               <div className="flex justify-between text-sm">
                 <span className="text-text-secondary">Тариф</span>
                 <span className="text-text-primary font-medium">{sub.planName}</span>
@@ -188,17 +184,60 @@ export const Profile: FC = () => {
           </div>
         )}
 
-        <Button
-          variant={sub?.status === 'ACTIVE' ? 'secondary' : 'primary'}
-          size="lg"
-          onClick={async () => {
-            const { data } = await getPlans();
-            setPlans(data.plans);
-            setShowPlans(true);
-          }}
-        >
-          {sub?.status === 'ACTIVE' ? 'Продлить' : 'Подключить'}
-        </Button>
+        {/* Trial CTA — show only if no subscription and trial not used */}
+        {!sub && !user?.trialActivated && (
+          <div className="space-y-2">
+            <Button
+              variant="primary"
+              size="lg"
+              loading={trialLoading}
+              onClick={handleTrial}
+            >
+              🎁 Подключить бесплатно (3 дня)
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={async () => {
+                const { data } = await getPlans();
+                setPlans(data.plans);
+                setShowPlans(true);
+              }}
+            >
+              Выбрать тариф
+            </Button>
+          </div>
+        )}
+
+        {/* No trial left — show plans button */}
+        {!sub && user?.trialActivated && (
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={async () => {
+              const { data } = await getPlans();
+              setPlans(data.plans);
+              setShowPlans(true);
+            }}
+          >
+            Подключить
+          </Button>
+        )}
+
+        {/* Has subscription — show renew */}
+        {sub && (
+          <Button
+            variant={sub.status === 'ACTIVE' ? 'secondary' : 'primary'}
+            size="lg"
+            onClick={async () => {
+              const { data } = await getPlans();
+              setPlans(data.plans);
+              setShowPlans(true);
+            }}
+          >
+            {sub.status === 'ACTIVE' && !sub.isTrial ? 'Продлить' : 'Выбрать тариф'}
+          </Button>
+        )}
       </Card>
 
       {/* Payment history */}

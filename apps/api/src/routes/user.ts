@@ -19,6 +19,7 @@ export async function userRoutes(app: FastifyInstance) {
         balanceKopeks: true,
         referralCode: true,
         isAdmin: true,
+        trialActivated: true,
         createdAt: true,
       },
     });

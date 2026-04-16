@@ -36,6 +36,8 @@ export async function activateSubscription(user: UserRow, plan: PlanRow): Promis
   const existing = await prisma.subscription.findFirst({ where: { userId: user.id } });
   const now = new Date();
 
+  const isTrial = plan.id === 0; // id 0 = virtual trial plan
+
   if (existing) {
     const newEnd =
       existing.endDate && existing.endDate > now
@@ -45,8 +47,9 @@ export async function activateSubscription(user: UserRow, plan: PlanRow): Promis
     await prisma.subscription.update({
       where: { id: existing.id },
       data: {
-        planId: plan.id,
-        status: 'ACTIVE',
+        planId: plan.id !== 0 ? plan.id : null,
+        status: isTrial ? 'TRIAL' : 'ACTIVE',
+        isTrial,
         trafficLimitBytes: BigInt(trafficBytes),
         trafficUsedBytes: BigInt(0),
         deviceLimit: plan.deviceLimit,
@@ -58,10 +61,11 @@ export async function activateSubscription(user: UserRow, plan: PlanRow): Promis
     await prisma.subscription.create({
       data: {
         userId: user.id,
-        planId: plan.id,
+        planId: plan.id !== 0 ? plan.id : null,
         remnaUuid: user.remnaUuid,
         shortUuid: user.remnaShortUuid ?? undefined,
-        status: 'ACTIVE',
+        status: isTrial ? 'TRIAL' : 'ACTIVE',
+        isTrial,
         trafficLimitBytes: BigInt(trafficBytes),
         deviceLimit: plan.deviceLimit,
         startDate: now,

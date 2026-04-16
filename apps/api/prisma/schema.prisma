@@ -68,6 +68,9 @@ model User {
   referredBy   User?   @relation("Referrals", fields: [referredById], references: [id])
   referrals    User[]  @relation("Referrals")
 
+  // Trial
+  trialActivated Boolean @default(false)
+
   // Remnawave integration
   remnaUuid  String? @unique
   remnaShortUuid String?

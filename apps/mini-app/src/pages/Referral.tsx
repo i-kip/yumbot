@@ -66,45 +66,28 @@ export const Referral: FC = () => {
           <div className="bg-bg-elevated rounded-btn px-3 py-2.5 text-text-secondary text-xs font-mono break-all mb-3">
             {info.referralLink}
           </div>
-          <Button
-            variant={copied ? 'secondary' : 'primary'}
-            size="lg"
-            onClick={copyLink}
-          >
-            {copied ? '✓ Скопировано!' : 'Копировать'}
-          </Button>
+          <div className="space-y-2">
+            <Button
+              variant={copied ? 'secondary' : 'primary'}
+              size="lg"
+              onClick={copyLink}
+            >
+              {copied ? '✓ Скопировано!' : 'Копировать ссылку'}
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => {
+                if (!info?.referralLink) return;
+                const text = encodeURIComponent('Попробуй YumOff VPN — быстрый и безопасный!\n' + info.referralLink);
+                window.Telegram?.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(info.referralLink)}&text=${text}`);
+              }}
+            >
+              📤 Поделиться в Telegram
+            </Button>
+          </div>
         </Card>
       )}
-
-      {/* Referral Race */}
-      <Card className="bg-gradient-to-br from-[#0f1e3d] to-[#0f1825] border border-accent-blue/20">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-text-primary font-bold text-base">Гонка рефералов</h2>
-          <span className="text-[10px] font-bold uppercase bg-accent-blue text-white px-2 py-0.5 rounded">
-            Акция
-          </span>
-        </div>
-        <p className="text-text-secondary text-sm leading-relaxed">
-          Новый реферал (с 20.03.2026, 22:27) получает{' '}
-          <span className="text-text-primary font-semibold">3 дня подписки</span> бесплатно.
-          Пригласи больше друзей и получи приз!
-        </p>
-        <div className="mt-3 h-px bg-bg-border" />
-        <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-          <div>
-            <p className="text-accent-blue-light font-bold text-xl">🥇</p>
-            <p className="text-text-secondary text-xs mt-0.5">AirPods Pro</p>
-          </div>
-          <div>
-            <p className="text-text-secondary font-bold text-xl">🥈</p>
-            <p className="text-text-secondary text-xs mt-0.5">3 мес VPN</p>
-          </div>
-          <div>
-            <p className="text-[#cd7f32] font-bold text-xl">🥉</p>
-            <p className="text-text-secondary text-xs mt-0.5">1 мес VPN</p>
-          </div>
-        </div>
-      </Card>
 
       {/* Referrals list */}
       {info && info.referrals.length > 0 && (

@@ -55,20 +55,7 @@ bot.command('start', async (ctx) => {
 
   // ── Keyboard ──────────────────────────────────────────
   const keyboard = new InlineKeyboard()
-    // Row 1 — main CTA: opens Mini App
-    .webApp('🚀  Открыть приложение', config.MINI_APP_URL)
-    .row()
-    // Row 2 — Stars purchase (Telegram Stars store)
-    .url('⭐  Дешёвый Premium и звёзды', 'https://t.me/PremiumBot')
-    .row()
-    // Row 3 — Telegram proxy
-    .url('📡  Прокси для Telegram', 'https://t.me/proxy?server=proxy.yumoff.site&port=443&secret=')
-    .row()
-    // Row 4 — manage autopay inside Mini App
-    .webApp('💳  Управление автоплатежом', config.MINI_APP_URL)
-    .row()
-    // Row 5 — referral (share history for free sub)
-    .url('🎁  Подписка за историю', `https://t.me/share/url?url=${encodeURIComponent(`Попробуй YumOff VPN — быстрый и безопасный! https://t.me/yumoff_bot?start=${user.referralCode}`)}&text=${encodeURIComponent('Делюсь своей реферальной ссылкой')}`);
+    .webApp('🌐  Открыть приложение', config.MINI_APP_URL);
 
   // ── Caption / welcome text ────────────────────────────
   const caption =

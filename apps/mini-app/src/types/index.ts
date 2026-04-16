@@ -9,6 +9,7 @@ export interface User {
   balanceKopeks: number;
   referralCode: string;
   isAdmin: boolean;
+  trialActivated: boolean;
   createdAt: string;
 }
 

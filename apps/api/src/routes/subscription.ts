@@ -108,6 +108,33 @@ export async function subscriptionRoutes(app: FastifyInstance) {
     }
   });
 
+  // POST /subscription/trial  — one-time 3-day free trial
+  app.post('/subscription/trial', { preHandler: [app.authenticate] }, async (req, reply) => {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) return reply.status(404).send({ error: 'User not found' });
+    if (user.trialActivated) return reply.status(409).send({ error: 'Trial already used' });
+
+    // Ensure Remnawave account exists
+    const { ensureRemnaUser } = await import('../services/user.js');
+    const remnaUser = await ensureRemnaUser(user);
+    if (!remnaUser) return reply.status(500).send({ error: 'Failed to create VPN account' });
+
+    const TRIAL_DAYS = 3;
+    const TRIAL_TRAFFIC_GB = 20;
+    const TRIAL_DEVICES = 1;
+
+    const { activateSubscription } = await import('../services/subscription.js');
+    await activateSubscription(
+      { id: user.id, remnaUuid: remnaUser.uuid, remnaShortUuid: remnaUser.shortUuid ?? null },
+      { id: 0, name: 'Пробный', durationDays: TRIAL_DAYS, trafficGb: TRIAL_TRAFFIC_GB, deviceLimit: TRIAL_DEVICES, priceKopeks: 0 },
+    );
+
+    // Mark trial as used
+    await prisma.user.update({ where: { id: user.id }, data: { trialActivated: true } });
+
+    return { ok: true };
+  });
+
   // POST /subscription/refresh-traffic
   app.post('/subscription/refresh-traffic', { preHandler: [app.authenticate] }, async (req) => {
     await syncSubscriptionFromRemna(req.userId);
