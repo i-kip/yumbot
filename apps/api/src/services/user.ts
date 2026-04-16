@@ -90,7 +90,6 @@ export async function syncSubscriptionFromRemna(userId: number): Promise<void> {
       data: {
         userId,
         remnaUuid: remnaUser.uuid,
-        shortUuid: remnaUser.shortUuid,
         startDate: new Date(remnaUser.createdAt),
         ...data,
       },
