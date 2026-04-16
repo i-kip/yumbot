@@ -21,7 +21,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build Mini App
         working-directory: apps/mini-app
@@ -66,7 +66,6 @@ jobs:
           name: web-dist
           path: web-dist
 
-      # Copy frontends to VDS
       - name: Deploy Mini App static files
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -87,7 +86,6 @@ jobs:
           target: "/var/www/web"
           strip_components: 1
 
-      # Pull & restart API via Docker on VDS
       - name: Deploy API via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -97,15 +95,8 @@ jobs:
           script: |
             set -e
             cd /opt/yumbot
-
-            # Pull latest code
             git pull origin main
-
-            # Rebuild and restart API container
             docker compose build api
             docker compose up -d --no-deps api
-
-            # Clean old images
             docker image prune -f
-
             echo "✅ Deploy complete at $(date)"

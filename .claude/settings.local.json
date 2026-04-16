@@ -6,7 +6,9 @@
       "Bash(rm -rf /tmp/remnawave-bedolaga-telegram-bot)",
       "Bash(git clone *)",
       "Bash(find /tmp/bedolaga-cabinet/src/types -name \"*.ts\" -exec head -50 {} +)",
-      "Bash(xargs ls *)"
+      "Bash(xargs ls *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

@@ -7,7 +7,8 @@ FROM base AS deps
 COPY package.json pnpm-workspace.yaml ./
 COPY packages/remnawave/package.json ./packages/remnawave/
 COPY apps/api/package.json ./apps/api/
-RUN pnpm install --frozen-lockfile
+# --no-frozen-lockfile because lock file is generated on first install
+RUN pnpm install --no-frozen-lockfile
 
 # Build remnawave package
 FROM deps AS build-pkg
@@ -20,7 +21,7 @@ FROM build-pkg AS build-api
 COPY apps/api/ ./apps/api/
 RUN pnpm --filter api build
 
-# Production image
+# Production image — only runtime deps
 FROM node:20-alpine AS production
 RUN npm install -g pnpm@9
 WORKDIR /app
@@ -29,7 +30,7 @@ COPY package.json pnpm-workspace.yaml ./
 COPY packages/remnawave/package.json ./packages/remnawave/
 COPY apps/api/package.json ./apps/api/
 
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --no-frozen-lockfile
 
 COPY --from=build-api /app/packages/remnawave/dist ./packages/remnawave/dist
 COPY --from=build-api /app/apps/api/dist ./apps/api/dist
@@ -37,7 +38,6 @@ COPY apps/api/prisma ./apps/api/prisma
 
 WORKDIR /app/apps/api
 
-# Run migrations then start
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
 
 EXPOSE 3000
