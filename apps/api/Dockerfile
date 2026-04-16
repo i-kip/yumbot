@@ -1,4 +1,5 @@
 FROM node:20-alpine AS base
+RUN apk add --no-cache openssl
 RUN npm install -g pnpm@9
 WORKDIR /app
 
@@ -25,6 +26,7 @@ RUN pnpm --filter api build
 
 # Production image — only runtime deps
 FROM node:20-alpine AS production
+RUN apk add --no-cache openssl
 RUN npm install -g pnpm@9 prisma@5.22.0
 WORKDIR /app
 
