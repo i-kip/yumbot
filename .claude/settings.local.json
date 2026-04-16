@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.rw)",
+      "Bash(rm -rf /tmp/remnawave-bedolaga-telegram-bot)",
+      "Bash(git clone *)",
+      "Bash(find /tmp/bedolaga-cabinet/src/types -name \"*.ts\" -exec head -50 {} +)",
+      "Bash(xargs ls *)"
+    ]
+  }
+}

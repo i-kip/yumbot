@@ -1,0 +1,111 @@
+name: Deploy to VDS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # ────────── Build frontends ──────────
+  build-frontends:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Mini App
+        working-directory: apps/mini-app
+        env:
+          VITE_API_URL: https://api.yumoff.site/api/v1
+        run: pnpm build
+
+      - name: Build Web Cabinet
+        working-directory: apps/web
+        env:
+          VITE_API_URL: https://api.yumoff.site/api/v1
+        run: pnpm build
+
+      - name: Upload mini-app dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: mini-app-dist
+          path: apps/mini-app/dist
+
+      - name: Upload web dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: apps/web/dist
+
+  # ────────── Deploy to VDS ──────────
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-frontends
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download mini-app dist
+        uses: actions/download-artifact@v4
+        with:
+          name: mini-app-dist
+          path: mini-app-dist
+
+      - name: Download web dist
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web-dist
+
+      # Copy frontends to VDS
+      - name: Deploy Mini App static files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VDS_HOST }}
+          username: ${{ secrets.VDS_USER }}
+          key: ${{ secrets.VDS_SSH_KEY }}
+          source: "mini-app-dist/*"
+          target: "/var/www/mini-app"
+          strip_components: 1
+
+      - name: Deploy Web Cabinet static files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VDS_HOST }}
+          username: ${{ secrets.VDS_USER }}
+          key: ${{ secrets.VDS_SSH_KEY }}
+          source: "web-dist/*"
+          target: "/var/www/web"
+          strip_components: 1
+
+      # Pull & restart API via Docker on VDS
+      - name: Deploy API via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VDS_HOST }}
+          username: ${{ secrets.VDS_USER }}
+          key: ${{ secrets.VDS_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/yumbot
+
+            # Pull latest code
+            git pull origin main
+
+            # Rebuild and restart API container
+            docker compose build api
+            docker compose up -d --no-deps api
+
+            # Clean old images
+            docker image prune -f
+
+            echo "✅ Deploy complete at $(date)"

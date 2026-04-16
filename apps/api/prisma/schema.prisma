@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  DISABLED
+  LIMITED
+  TRIAL
+}
+
+enum TransactionType {
+  DEPOSIT
+  SUBSCRIPTION_PAYMENT
+  DEVICE_PURCHASE
+  TRAFFIC_PURCHASE
+  REFERRAL_BONUS
+  REFUND
+  ADMIN_ADJUSTMENT
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum TrafficStrategy {
+  NO_RESET
+  DAY
+  WEEK
+  MONTH
+  MONTH_ROLLING
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  telegramId   BigInt?    @unique
+  email        String?    @unique
+  passwordHash String?
+  username     String?
+  firstName    String?
+  lastName     String?
+  photoUrl     String?
+  languageCode String?    @default("ru")
+  status       UserStatus @default(ACTIVE)
+  isAdmin      Boolean    @default(false)
+
+  // Balance in kopeks (1 ruble = 100 kopeks)
+  balanceKopeks Int @default(0)
+
+  // Referral
+  referralCode String  @unique @default(cuid())
+  referredById Int?
+  referredBy   User?   @relation("Referrals", fields: [referredById], references: [id])
+  referrals    User[]  @relation("Referrals")
+
+  // Remnawave integration
+  remnaUuid  String? @unique
+  remnaShortUuid String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions Subscription[]
+  transactions  Transaction[]
+  refreshTokens RefreshToken[]
+  emailVerifications EmailVerification[]
+
+  @@index([telegramId])
+  @@index([email])
+  @@index([remnaUuid])
+}
+
+model Subscription {
+  id     Int    @id @default(autoincrement())
+  userId Int
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId Int?
+  plan   Plan?  @relation(fields: [planId], references: [id])
+
+  status    SubscriptionStatus @default(PENDING)
+  isTrial   Boolean            @default(false)
+
+  // Traffic (bytes)
+  trafficLimitBytes   BigInt          @default(107374182400) // 100 GB
+  trafficUsedBytes    BigInt          @default(0)
+  trafficStrategy     TrafficStrategy @default(MONTH)
+
+  // Devices
+  deviceLimit Int @default(5)
+
+  // Timing
+  startDate DateTime?
+  endDate   DateTime?
+
+  // Remnawave
+  remnaUuid    String? @unique
+  shortUuid    String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Plan {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+  durationDays Int
+  trafficGb   Int     // 0 = unlimited
+  deviceLimit Int     @default(5)
+  priceKopeks Int
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Transaction {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type          TransactionType
+  amountKopeks  Int
+  paymentMethod String?
+  paymentId     String?
+  starsAmount   Int?
+  status        PaymentStatus @default(PENDING)
+  description   String?
+  meta          Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([paymentId])
+  @@index([status])
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
+}
+
+model EmailVerification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([token])
+}
+
+model ReferralReward {
+  id               Int      @id @default(autoincrement())
+  referrerId       Int
+  referredUserId   Int
+  transactionId    Int?
+  rewardKopeks     Int
+  createdAt        DateTime @default(now())
+
+  @@index([referrerId])
+}
+
+model Settings {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
