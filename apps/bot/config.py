@@ -9,9 +9,9 @@ def _int_list(val: str) -> list[int]:
 BOT_TOKEN: str = os.environ["BOT_TOKEN"]
 BOT_WEBHOOK_SECRET: str = os.environ["BOT_WEBHOOK_SECRET"]
 
-# asyncpg wants postgresql:// — strip Prisma-specific params
-_raw_url = os.environ["DATABASE_URL"]
-DATABASE_URL: str = _raw_url.split("?")[0].replace("postgresql://", "postgresql://")
+# asyncpg: strip Prisma query params, normalise scheme
+_raw_url = os.environ["DATABASE_URL"].split("?")[0]
+DATABASE_URL: str = _raw_url.replace("postgres://", "postgresql://", 1) if _raw_url.startswith("postgres://") else _raw_url
 
 API_URL: str = os.environ.get("API_URL", "https://api.yumoff.site")
 MINI_APP_URL: str = os.environ.get("MINI_APP_URL", "https://miniy.yumoff.site")

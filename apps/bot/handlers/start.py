@@ -1,5 +1,5 @@
 from aiogram import Router
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 import db
 import config as cfg
@@ -72,7 +72,7 @@ async def cmd_start(message: Message) -> None:
         await message.answer(caption, parse_mode="HTML", reply_markup=keyboard)
 
 
-@router.message(lambda m: m.text and m.text.startswith("/profile"))
+@router.message(Command("profile"))
 async def cmd_profile(message: Message) -> None:
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(
@@ -83,7 +83,7 @@ async def cmd_profile(message: Message) -> None:
     await message.answer("Открой личный кабинет:", reply_markup=keyboard)
 
 
-@router.message(lambda m: m.text and m.text.startswith("/help"))
+@router.message(Command("help"))
 async def cmd_help(message: Message) -> None:
     await message.answer(
         "🆘 <b>Помощь</b>\n\n"
@@ -91,5 +91,4 @@ async def cmd_help(message: Message) -> None:
         "/profile — Личный кабинет\n"
         "/help — Помощь\n\n"
         "📞 Поддержка: @yumoff_support",
-        parse_mode="HTML",
     )
