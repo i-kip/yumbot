@@ -30,7 +30,7 @@ export async function activateSubscription(user: UserRow, plan: PlanRow): Promis
     activeUserInbounds: inbounds,
     expireAt,
     deviceLimit: plan.deviceLimit,
-    ...(config.REMNAWAVE_SQUAD_UUID ? { squadId: config.REMNAWAVE_SQUAD_UUID } : {}),
+    ...(config.REMNAWAVE_SQUAD_UUID ? { activeInternalSquads: [{ uuid: config.REMNAWAVE_SQUAD_UUID }] } : {}),
   });
   await remnawave.enableUser(user.remnaUuid);
 
