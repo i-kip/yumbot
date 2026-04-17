@@ -46,6 +46,7 @@ export async function ensureRemnaUser(user: UserRow): Promise<void> {
     description: `yumbot user #${user.id}`,
     status: 'DISABLED',
     deviceLimit: config.REMNAWAVE_DEFAULT_DEVICE_LIMIT,
+    ...(config.REMNAWAVE_SQUAD_UUID ? { squadId: config.REMNAWAVE_SQUAD_UUID } : {}),
   });
 
   await prisma.user.update({

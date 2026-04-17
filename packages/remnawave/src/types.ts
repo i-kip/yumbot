@@ -93,6 +93,7 @@ export interface CreateUserPayload {
   description?: string;
   status?: UserStatus;
   deviceLimit?: number;
+  squadId?: string;
 }
 
 export interface UpdateUserPayload {
@@ -103,6 +104,7 @@ export interface UpdateUserPayload {
   status?: UserStatus;
   deviceLimit?: number;
   description?: string;
+  squadId?: string;
 }
 
 export interface RemnawaveInboundFull {

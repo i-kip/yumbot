@@ -30,7 +30,7 @@ export const removeDevice = (hwid: string) =>
   api.delete(`/subscription/devices/${encodeURIComponent(hwid)}`);
 export const purchaseDeviceSlot = () => api.post('/subscription/devices/purchase');
 export const refreshTraffic = () => api.post('/subscription/refresh-traffic');
-export const activateTrial = () => api.post('/subscription/trial');
+export const activateTrial = () => api.post('/subscription/trial', {});
 
 // === Balance ===
 export const getBalance = () => api.get<{ balanceKopeks: number }>('/balance');

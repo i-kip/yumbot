@@ -23,7 +23,9 @@ export async function userRoutes(app: FastifyInstance) {
         createdAt: true,
       },
     });
-    return user;
+    if (!user) return null;
+    // BigInt cannot be JSON-serialized — convert to string
+    return { ...user, telegramId: user.telegramId ? String(user.telegramId) : null };
   });
 
   // POST /user/sync - sync subscription data from Remnawave
