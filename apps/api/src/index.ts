@@ -11,7 +11,7 @@ import { userRoutes } from './routes/user.js';
 import { subscriptionRoutes } from './routes/subscription.js';
 import { balanceRoutes } from './routes/balance.js';
 import { referralRoutes } from './routes/referral.js';
-import { registerBotWebhook, setupWebhook } from './bot/index.js';
+// Bot is now a separate Python service (apps/bot)
 
 const app = Fastify({
   logger: {
@@ -46,9 +46,6 @@ await app.register(rateLimit, {
 // Auth plugin
 await app.register(authenticate);
 
-// Bot webhook (before rate limit on /webhook)
-registerBotWebhook(app);
-
 // API routes
 app.register(async (api) => {
   api.register(authRoutes);
@@ -76,11 +73,7 @@ try {
   await app.listen({ port: config.PORT, host: config.HOST });
   console.log(`API running on http://${config.HOST}:${config.PORT}`);
 
-  if (config.NODE_ENV === 'production') {
-    await setupWebhook();
-  } else {
-    console.log('Development mode: use ngrok or similar to expose webhook');
-  }
+  console.log('Bot webhook handled by Python service on port 8080');
 } catch (err) {
   app.log.error(err);
   process.exit(1);

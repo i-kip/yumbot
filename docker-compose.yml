@@ -54,6 +54,23 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
+  bot:
+    build:
+      context: apps/bot
+      dockerfile: Dockerfile
+    restart: always
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://yumbot:${DB_PASSWORD}@postgres:5432/yumbot
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+      - external
+    ports:
+      - "127.0.0.1:8080:8080"
+
   watchtower:
     image: containrrr/watchtower
     restart: always
