@@ -2,9 +2,9 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { remnawave } from '../lib/remnawave.js';
-import { syncSubscriptionFromRemna } from '../services/user.js';
+import { syncSubscriptionFromRemna, ensureRemnaUser } from '../services/user.js';
 import { purchaseSubscriptionFromBalance, purchaseExtraDevice } from '../services/payment.js';
-import { getConnectionUrl } from '../services/subscription.js';
+import { getConnectionUrl, activateSubscription } from '../services/subscription.js';
 
 const DEVICE_SLOT_PRICE_KOPEKS = 10_000; // 100 rub
 
@@ -114,18 +114,19 @@ export async function subscriptionRoutes(app: FastifyInstance) {
     if (!user) return reply.status(404).send({ error: 'User not found' });
     if (user.trialActivated) return reply.status(409).send({ error: 'Trial already used' });
 
-    // Ensure Remnawave account exists
-    const { ensureRemnaUser } = await import('../services/user.js');
-    const remnaUser = await ensureRemnaUser(user);
-    if (!remnaUser) return reply.status(500).send({ error: 'Failed to create VPN account' });
+    // Ensure Remnawave account exists (returns void, updates DB)
+    await ensureRemnaUser({ id: user.id, telegramId: user.telegramId, remnaUuid: user.remnaUuid });
+
+    // Re-fetch to get updated remnaUuid
+    const fresh = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!fresh?.remnaUuid) return reply.status(500).send({ error: 'Failed to create VPN account' });
 
     const TRIAL_DAYS = 3;
     const TRIAL_TRAFFIC_GB = 20;
     const TRIAL_DEVICES = 1;
 
-    const { activateSubscription } = await import('../services/subscription.js');
     await activateSubscription(
-      { id: user.id, remnaUuid: remnaUser.uuid, remnaShortUuid: remnaUser.shortUuid ?? null },
+      { id: fresh.id, remnaUuid: fresh.remnaUuid, remnaShortUuid: fresh.remnaShortUuid ?? null },
       { id: 0, name: 'Пробный', durationDays: TRIAL_DAYS, trafficGb: TRIAL_TRAFFIC_GB, deviceLimit: TRIAL_DEVICES, priceKopeks: 0 },
     );
 
